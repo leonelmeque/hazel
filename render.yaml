@@ -1,0 +1,32 @@
+# Render Blueprint for the Timelin auto-update server (Hazel).
+#
+# THIS FILE BELONGS IN THE HAZEL FORK, NOT IN timelin.
+# Copy it to the ROOT of your `leonelmeque/hazel` fork and rename it to
+# `render.yaml`, then in Render: New → Blueprint → pick that repo.
+#
+# Hazel runs as a persistent Node web service (not serverless), so streaming the
+# ~112 MB app download to clients has no function size/duration limit.
+services:
+  - type: web
+    name: timelin-updates
+    runtime: node
+    plan: free # free sleeps after ~15m idle (cold start on next check). Use "starter" to stay warm.
+    buildCommand: npm install
+    # Hazel is Vercel-serverless-shaped (no `start` script); `api/index.js` exports
+    # the request handler (config read from env in `lib/server.js`). Serve it as a
+    # standalone HTTP server with `micro`, which binds Render's injected $PORT.
+    startCommand: npx micro api/index.js
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION # Hazel's deps are old; pin an LTS that installs cleanly
+        value: "18"
+      - key: ACCOUNT # GitHub owner of the private repo
+        value: leonelmeque
+      - key: REPOSITORY
+        value: timelin
+      - key: PRE # 0 = ignore pre-releases
+        value: "0"
+      - key: TOKEN # GitHub PAT with read access to timelin releases — set in the Render dashboard (secret)
+        sync: false
+      - key: URL # the service's own public URL, e.g. https://timelin-updates.onrender.com — set after first deploy, then redeploy
+        sync: false
